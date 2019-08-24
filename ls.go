@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 
+	corev1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -36,18 +36,19 @@ func main() {
 		os.Exit(-1)
 	}
 
-	ns := "kube-system"
-	pods, err := cs.CoreV1().Pods(ns).List(meta_v1.ListOptions{})
+	ns := "nginx"
+	watcher, err := cs.CoreV1().Pods(ns).Watch(meta_v1.ListOptions{})
 	if err != nil {
-		fmt.Printf("could not get pods in %q namespace: %v\n", ns, err)
+		fmt.Printf("could not watch pods in %q namespace: %v\n", ns, err)
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	fmt.Fprintln(w, "NAME\tIP\tNODE")
-	for _, pod := range pods.Items {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", pod.Name, pod.Status.PodIP, pod.Spec.NodeName)
+	fmt.Println("Watching on Pods in the ns:", ns)
+	fmt.Println("")
+	ch := watcher.ResultChan()
+	for event := range ch {
+		pod := event.Object.(*corev1.Pod)
+		fmt.Printf("%s pod %v\n", event.Type, pod.Name)
 	}
-	w.Flush()
 }
 
 func getKubeConfig() string {
