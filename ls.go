@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"text/tabwriter"
 
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -40,7 +41,13 @@ func main() {
 	if err != nil {
 		fmt.Printf("could not get pods in %q namespace: %v\n", ns, err)
 	}
-	fmt.Printf("Got following pods:\n\n%v\n", pods)
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	fmt.Fprintln(w, "NAME\tIP\tNODE")
+	for _, pod := range pods.Items {
+		fmt.Fprintf(w, "%s\t%s\t%s\n", pod.Name, pod.Status.PodIP, pod.Spec.NodeName)
+	}
+	w.Flush()
 }
 
 func getKubeConfig() string {
