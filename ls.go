@@ -6,6 +6,7 @@ import (
 
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func main() {
@@ -21,6 +22,32 @@ func main() {
 		os.Exit(-1)
 	}
 
-	var cs *kubernetes.Clientset
-	cs.CoreV1().Pods("kube-system").List(meta_v1.ListOptions{})
+	kubeconfig := getKubeConfig()
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		fmt.Printf("can't build config from kubeconfig at %s: %v\n", kubeconfig, err)
+		os.Exit(-1)
+	}
+
+	cs, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		fmt.Printf("can't get kubernetes client: %v\n", err)
+		os.Exit(-1)
+	}
+
+	ns := "kube-system"
+	pods, err := cs.CoreV1().Pods(ns).List(meta_v1.ListOptions{})
+	if err != nil {
+		fmt.Printf("could not get pods in %q namespace: %v\n", ns, err)
+	}
+	fmt.Printf("Got following pods:\n\n%v\n", pods)
+}
+
+func getKubeConfig() string {
+	kubeconfigEnv := os.Getenv("KUBECONFIG")
+	if kubeconfigEnv != "" {
+		return kubeconfigEnv
+	}
+
+	return os.ExpandEnv("$HOME/.kube/config")
 }
